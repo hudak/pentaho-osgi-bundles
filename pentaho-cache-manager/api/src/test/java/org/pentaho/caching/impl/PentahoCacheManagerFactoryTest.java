@@ -95,6 +95,7 @@ public class PentahoCacheManagerFactoryTest {
     Hashtable<String, String> cfg = new Hashtable<String, String>();
     cfg.put( PENTAHO_CACHE_PROVIDER, "unavailable" );
     cfg.put( "global." + VERSION_PROPERTY, "0" );
+    cfg.put( "template.default", "Required Template" );
     factory.updated( MOCK_PID, cfg );
 
     // Register Service

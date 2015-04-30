@@ -3,8 +3,11 @@ package org.pentaho.caching.api;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import org.osgi.service.cm.ConfigurationException;
 
+import java.text.MessageFormat;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,7 +32,7 @@ public class PentahoCacheSystemConfiguration {
     templateMap = ImmutableMap.of();
   }
 
-  public void setData( Map<String, String> config ) {
+  public void setData( Map<String, String> config ) throws ConfigurationException {
     Map<String, String> global = Maps.newHashMap();
     Map<String, Template> templateMap = Maps.newHashMap();
 
@@ -69,6 +72,25 @@ public class PentahoCacheSystemConfiguration {
         properties.putAll( global );
         properties.putAll( template.properties );
         template.properties = properties;
+      }
+    }
+
+    // Validate minimum template specifications
+    for ( Constants.SystemTemplate systemTemplate : Constants.SystemTemplate.values() ) {
+      String id = systemTemplate.getId();
+      Template template = templateMap.get( id );
+
+      if ( template == null ) {
+        throw new ConfigurationException( "template." + id,
+          MessageFormat.format( "Required system template ''{0}'' is not defined", id )
+        );
+      }
+
+      List<String> failures = systemTemplate.checkMinimumRequirements( template.properties );
+      if ( !failures.isEmpty() ) {
+        throw new ConfigurationException( "template." + id,
+          MessageFormat.format( "Required system template '{0}' does not meet minimum requirements: {1}", id, failures )
+        );
       }
     }
 

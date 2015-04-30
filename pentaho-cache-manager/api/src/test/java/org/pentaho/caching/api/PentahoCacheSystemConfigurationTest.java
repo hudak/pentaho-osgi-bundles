@@ -7,6 +7,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
+import org.osgi.service.cm.ConfigurationException;
 
 import javax.cache.Cache;
 import javax.cache.configuration.Configuration;
@@ -36,9 +37,9 @@ public class PentahoCacheSystemConfigurationTest {
       .put( "private", "private-value" )
       .put( "global.common", "common-value" )
       .put( "global.override", "global-override-value" )
-      .put( "template.first", "First Template Description" )
-      .put( "template.first.template-prop", "template private value" )
-      .put( "template.first.override", "template-override-value" )
+      .put( "template.default", "First Template Description" )
+      .put( "template.default.template-prop", "template private value" )
+      .put( "template.default.override", "template-override-value" )
       .put( "template.second.template-prop", "second template private value" );
 
     assertThat( systemConfiguration.getGlobalProperties(), isEmptyMap );
@@ -54,7 +55,7 @@ public class PentahoCacheSystemConfigurationTest {
     ) ) );
 
     Map<String, PentahoCacheTemplateConfiguration> templates = systemConfiguration.createTemplates( cacheManager );
-    PentahoCacheTemplateConfiguration firstTemplate = templates.get( "first" );
+    PentahoCacheTemplateConfiguration firstTemplate = templates.get( "default" );
     assertThat( firstTemplate.getDescription(), equalTo( "First Template Description" ) );
     assertThat( firstTemplate.getCacheManager(), equalTo( cacheManager ) );
 
@@ -71,5 +72,18 @@ public class PentahoCacheSystemConfigurationTest {
     assertThat( firstTemplate.createCache( "cacheName", String.class, Object.class ), equalTo( cache ) );
 
     assertThat( templates.get( "second" ), nullValue() );
+  }
+
+  @Test( expected = ConfigurationException.class )
+  public void testMissingRequiredTemplate() throws Exception {
+    ImmutableMap.Builder<String, String> configBuilder = ImmutableMap.builder();
+    configBuilder
+      .put( "private", "private-value" )
+      .put( "global.common", "common-value" )
+      .put( "global.override", "global-override-value" );
+
+    PentahoCacheSystemConfiguration systemConfiguration = new PentahoCacheSystemConfiguration();
+
+    systemConfiguration.setData( configBuilder.build() );
   }
 }
