@@ -30,12 +30,15 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceEvent;
+import org.osgi.framework.ServiceFactory;
 import org.osgi.framework.ServiceListener;
 import org.osgi.framework.ServiceReference;
 import org.osgi.framework.ServiceRegistration;
+import org.osgi.framework.wiring.BundleWiring;
 import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedServiceFactory;
 import org.pentaho.caching.api.PentahoCacheManager;
@@ -217,14 +220,24 @@ public class PentahoCacheManagerFactory implements ManagedServiceFactory {
       Futures.addCallback( serviceFuture, new FutureCallback<PentahoCacheProvidingService>() {
         @Override public void onSuccess( PentahoCacheProvidingService providingService ) {
           if ( !registrationFuture.isDone() ) {
-            PentahoCacheManager cacheManager = new PentahoCacheManagerImpl( config, providingService );
-
-            Hashtable<String, Object> serviceProperties = new Hashtable<String, Object>();
+            Hashtable<String, Object> serviceProperties = new Hashtable<>();
             serviceProperties.put( PENTAHO_CACHE_PROVIDER, providerId );
             serviceProperties.put( SERVICE_PID, pid );
 
-            ServiceRegistration<PentahoCacheManager> registration =
-              bundleContext.registerService( PentahoCacheManager.class, cacheManager, serviceProperties );
+            ServiceRegistration<?> registration = bundleContext.registerService( PentahoCacheManager.class.toString(),
+              new ServiceFactory<PentahoCacheManager>() {
+                @Override
+                public PentahoCacheManager getService( Bundle bundle,
+                                                       ServiceRegistration<PentahoCacheManager> registration ) {
+                  ClassLoader classLoader = bundle.adapt( BundleWiring.class ).getClassLoader();
+                  return new PentahoCacheManagerImpl( config, providingService );
+                }
+
+                @Override
+                public void ungetService( Bundle bundle, ServiceRegistration<PentahoCacheManager> registration,
+                                          PentahoCacheManager service ) {
+                }
+              }, serviceProperties );
 
             registrationFuture.set( registration );
             logger.log( Level.INFO, "New Caching Service registered" );
